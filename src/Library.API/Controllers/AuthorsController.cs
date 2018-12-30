@@ -24,7 +24,7 @@ namespace Library.API.Controllers
 
             var authors = Mapper.Map<IEnumerable<AuthorDto>>(authorsFromRepo);
 
-            return Ok(authors);          
+            return Ok(authors);
         }
 
         [HttpGet("{id}")]
