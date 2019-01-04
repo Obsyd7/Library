@@ -51,6 +51,8 @@ namespace Library.API
         {
             loggerFactory.AddConsole();
             loggerFactory.AddDebug(LogLevel.Information);
+            //loggerFactory.AddProvider(new NLog.Extensions.Logging.NLogLoggerProvider());
+            //loggerFactory.AddNLog();
 
             if (env.IsDevelopment())
             {
