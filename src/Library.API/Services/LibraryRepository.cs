@@ -1,4 +1,5 @@
 ﻿using Library.API.Entities;
+using Library.API.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +8,7 @@ namespace Library.API.Services
 {
     public class LibraryRepository : ILibraryRepository
     {
-        private LibraryContext _context;
+        private readonly LibraryContext _context;
 
         public LibraryRepository(LibraryContext context)
         {
@@ -20,28 +21,24 @@ namespace Library.API.Services
             _context.Authors.Add(author);
 
             // the repository fills the id (instead of using identity columns)
-            if (author.Books.Any())
+            if (!author.Books.Any()) return;
+            foreach (var book in author.Books)
             {
-                foreach (var book in author.Books)
-                {
-                    book.Id = Guid.NewGuid();
-                }
+                book.Id = Guid.NewGuid();
             }
         }
 
         public void AddBookForAuthor(Guid authorId, Book book)
         {
             var author = GetAuthor(authorId);
-            if (author != null)
+            if (author == null) return;
+            // if there isn't an id filled out (ie: we're not upserting),
+            // we should generate one
+            if (book.Id == Guid.Empty)
             {
-                // if there isn't an id filled out (ie: we're not upserting),
-                // we should generate one
-                if (book.Id == Guid.Empty)
-                {
-                    book.Id = Guid.NewGuid();
-                }
-                author.Books.Add(book);
+                book.Id = Guid.NewGuid();
             }
+            author.Books.Add(book);
         }
 
         public bool AuthorExists(Guid authorId)
@@ -64,16 +61,21 @@ namespace Library.API.Services
             return _context.Authors.FirstOrDefault(a => a.Id == authorId);
         }
 
-        public IEnumerable<Author> GetAuthors()
+        public IEnumerable<Author> GetAuthors(AuthorsResourceParameters authorsResourceParameters)
         {
-            return _context.Authors.OrderBy(a => a.FirstName).ThenBy(a => a.LastName);
+            return _context.Authors
+                .OrderBy(a => a.FirstName)
+                .ThenBy(a => a.LastName)
+                .Skip(authorsResourceParameters.PageSize * authorsResourceParameters.PageNumber - 1)
+                .Take(authorsResourceParameters.PageSize)
+                .ToList();
         }
 
         public IEnumerable<Author> GetAuthors(IEnumerable<Guid> authorIds)
         {
             return _context.Authors.Where(a => authorIds.Contains(a.Id))
                 .OrderBy(a => a.FirstName)
-                .OrderBy(a => a.LastName)
+                .ThenBy(a => a.LastName)
                 .ToList();
         }
 
@@ -84,8 +86,7 @@ namespace Library.API.Services
 
         public Book GetBookForAuthor(Guid authorId, Guid bookId)
         {
-            return _context.Books
-              .Where(b => b.AuthorId == authorId && b.Id == bookId).FirstOrDefault();
+            return _context.Books.FirstOrDefault(b => b.AuthorId == authorId && b.Id == bookId);
         }
 
         public IEnumerable<Book> GetBooksForAuthor(Guid authorId)
